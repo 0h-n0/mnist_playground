@@ -9,6 +9,7 @@ from sacred.observers import FileStorageObserver
 from sklearn.datasets import fetch_mldata
 import numpy as np
 import mxnet as mx
+import tensorboard as tb
 
 ex = Experiment('mnist_blstm')
 ex.observers.append(FileStorageObserver.create('results'))
