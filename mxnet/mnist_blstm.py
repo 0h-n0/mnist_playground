@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-import struct
-
+import importlib
 from pathlib import Path
 import urllib.request
 
@@ -17,13 +16,29 @@ ex.observers.append(FileStorageObserver.create('results'))
 
 def nn(data):
     flatten = mx.sym.flatten(data=data)
-    fc1 = mx.sym.FullyConnected(data=flatten, num_hidden=128)
-    act1 = mx.sym.Activation(data=fc1, act_type='relu')
-    fc2 = mx.sym.FullyConnected(data=act1, num_hidden=10)
-    act2 = mx.sym.Activation(data=fc2, act_type='relu')
-    out = mx.sym.Softmax(data=act2, name='softmax')
+    nn = mx.sym.FullyConnected(data=flatten, num_hidden=500)
+    nn = mx.sym.Activation(data=nn, act_type='relu')    
+    nn = mx.sym.FullyConnected(data=nn, num_hidden=128)
+    nn = mx.sym.Activation(data=nn, act_type='relu')
+    nn = mx.sym.FullyConnected(data=nn, num_hidden=10)
+    nn = mx.sym.Activation(data=nn, act_type='relu')
+    out = mx.sym.SoftmaxOutput(data=nn, name='softmax')
     return out
 
+def acc(model, data, labels):
+    model.fowa
+
+
+@ex.command
+def graph(model, path_to_results):
+    data = mx.sym.var('data')
+    net = nn(data)
+    a = mx.viz.plot_network(net)
+    p = Path(path_to_results)
+    filename = model
+    out = p / filename
+    a.render(out.resolve())
+    
 @ex.config
 def cfg():
     path_to_data = '../data/mnist' # set data path.
@@ -35,6 +50,8 @@ def cfg():
     ngpu = 1 # set the number of gpu
     model = 'nn' # set the name of model.
     background = 'mnxet' # set the name of deep learning library
+    gpuid = 0
+    lr = 0.1
 
 @ex.capture
 def show_cfg(_log, _seed, path_to_data, path_to_results,
@@ -52,8 +69,12 @@ def show_cfg(_log, _seed, path_to_data, path_to_results,
     
 @ex.capture
 def run(_log, _seed, path_to_data, path_to_results, num_train, batch, epoch,
-        context, ngpu):
-    
+        context, ngpu, gpuid, lr):
+    if context == 'cpu':
+        mxcontext = mx.cpu()
+    elif context == 'gpu':
+        mxcontext = mx.gpu(gpuid)
+        
     _log.info('Start train.')
 
     _log.info('Downloading MNIST DATA.')
@@ -63,7 +84,6 @@ def run(_log, _seed, path_to_data, path_to_results, num_train, batch, epoch,
 
     np.random.seed(_seed)
     random_seq = np.arange(70000)
-    num_train = 60000
     np.random.shuffle(random_seq)
 
     ## shuffle data
@@ -75,20 +95,33 @@ def run(_log, _seed, path_to_data, path_to_results, num_train, batch, epoch,
     
     data = mx.sym.var('data')
     model = mx.mod.Module(symbol=nn(data), data_names=['data'],
-                          label_names=['softmax_label'], context=mx.cpu())
+                          label_names=['softmax_label'], context=mxcontext)
 
     model.bind(data_shapes=[('data', (batch, 784))],
            label_shapes=[('softmax_label', (batch, 10))])
 
     model.init_params(initializer=mx.init.Xavier(magnitude=2.))
-    model.init_optimizer(optimizer='sgd', optimizer_params=(('learning_rate', 0.1), ))
-    metric = mx.metric.create('acc')
+    model.init_optimizer(optimizer='sgd', optimizer_params=(('learning_rate', lr), ))
+    loss = mx.metric.create('loss')
+    acc = mx.metric.Accuracy()
 
     for i in range(epoch):
+        _log.info('epoch:{:2d}'.format(i+1))
         for j in range(0, num_train - batch, batch):
             x = train_data[j:j+batch]
             y = train_labels[j:j+batch]
-            model(x)
+            x = mx.nd.array(x, mxcontext)
+            y = mx.nd.array(y, mxcontext)            
+            xbatch = mx.io.DataBatch([x])
+            model.forward(xbatch, is_train=True)
+            model.update_metric(loss, [y])
+            model.update_metric(acc, [y])            
+            model.backward()
+            model.update()
+        
+        _log.info('epoch:{:2d}, Train {}: {}'.format(i+1, *loss.get()))        
+        _log.info('epoch:{:2d}, Train {}: {}'.format(i+1, *acc.get()))        
+            
             
 @ex.automain
 def main():

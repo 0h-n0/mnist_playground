@@ -104,3 +104,4 @@ ENV/
 datasets/*
 \#*
 data/*
+*/results/*
