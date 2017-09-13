@@ -105,3 +105,4 @@ datasets/*
 \#*
 data/*
 */results/*
+*.gz

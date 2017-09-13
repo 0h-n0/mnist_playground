@@ -36,11 +36,9 @@ def cnn(data):
     out = mx.sym.SoftmaxOutput(data=nn, name='softmax')
     return out
 
-def rnn(data):
-    flatten = mx.sym.flatten(data=data)
-    
-    out = mx.sym.SoftmaxOutput(data=nn, name='softmax')
-    return nn
+
+def lstm(data):
+    pass
 
 def acc(model, data, labels):
     model.fowa
@@ -67,8 +65,8 @@ def graph(model, path_to_results):
         net = nn(data)
     elif model == 'cnn':
         net = cnn(data)        
-    elif model == 'rnn':
-        net = rnn(data)
+    elif model == 'lstm':
+        net = lstm(lstm)
     a = mx.viz.plot_network(net)
     p = Path(path_to_results)
     filename = model
@@ -122,8 +120,8 @@ def run(_log, _seed, path_to_data, path_to_results, num_train, batch, epoch,
         dnnarch = nn(data)
     elif model == 'cnn':
         dnnarch = cnn(data)        
-    elif model == 'rnn':
-        dnnarch = rnn(data)
+    elif model == 'lstm':
+        dnnarch = lstm(data)
         
     model = mx.mod.Module(symbol=dnnarch, data_names=['data'],
                           label_names=['softmax_label'], context=mxcontext)
