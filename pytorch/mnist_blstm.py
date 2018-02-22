@@ -108,6 +108,7 @@ def get_model(xdim, ydim, nlayers, opttype, optconf, gpu):
         m.cuda()
     return m
 
+
 @ex.capture
 def train(_log, seed, epoch, log_interval):
     torch.manual_seed(seed)    
@@ -123,7 +124,13 @@ def train(_log, seed, epoch, log_interval):
             if batch_idx % log_interval == 0 :
                 loss = loss.data[0]
                 _log.info(f"idx[{batch_idx}], Loss :[{loss}]")
-
+        for batch_idx, (data, target) in enumerate(test_iterator):
+            B, _, X, Y = data.size()
+            data  = data.view(B, X, Y)
+            target  = target.view(B)            
+            m.onestep(data, target, 'eval')
+            
+                
 @ex.automain
 def main():
     train()
