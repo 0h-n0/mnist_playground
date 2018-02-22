@@ -11,7 +11,7 @@ from torchvision import transforms, datasets
 ex = sacred.Experiment("pytorch_blstm")
 
 class myBLSTM(nn.Module):
-    def __init__(self, xdim, ydim, nout, nlayers, cuda):
+    def __init__(self, xdim, ydim, nout, nlayers, gpu):
         super(myBLSTM, self).__init__()
         self.blstm = nn.LSTM(xdim, nout, nlayers, bidirectional=True)
         self.cnn1  = nn.Conv1d(xdim, 10, kernel_size=4, stride=2)
@@ -19,9 +19,9 @@ class myBLSTM(nn.Module):
         self.xdim = xdim
         self.ydim = ydim
         self.optimizer = None
-        self.cuda = cuda
         self.nout = nout
         self.nlayers = nlayers
+        self.gpu = gpu
 
     def forward(self, x):
         o, _  = self.blstm(x)
@@ -37,7 +37,7 @@ class myBLSTM(nn.Module):
             self.train()
         else:
             self.eval()
-        if self.cuda:
+        if self.gpu:
             x = x.cuda()
             t = t.cuda()
         x, t = Variable(x, requires_grad=True), Variable(t)
@@ -68,7 +68,7 @@ def config():
     ydim = 28
     nlayers = 4
     log_interval = 100
-    cuda = False
+    gpu = True
     kwargs = dict()
     opttype = 'Adam'
     optconf = dict(
@@ -100,11 +100,11 @@ def get_iterator(train_batch_size, test_batch_size, kwargs):
     return train_loader, test_loader
 
 @ex.capture
-def get_model(xdim, ydim, nlayers, opttype, optconf, cuda):
-    cuda = not cuda and torch.cuda.is_available()
-    m = myBLSTM(xdim, ydim, 10, nlayers, cuda)
+def get_model(xdim, ydim, nlayers, opttype, optconf, gpu):
+    gpu = gpu if torch.cuda.is_available() else False
+    m = myBLSTM(xdim, ydim, 10, nlayers, gpu)
     m.set_opt(opttype, optconf)
-    if cuda:
+    if gpu:
         m.cuda()
     return m
 
